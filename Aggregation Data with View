@@ -1,0 +1,40 @@
+create view Students.v_momot_aggregation_data_with_view as
+
+with counting as (
+select
+  id_message,
+  COUNT(id_message) OVER (PARTITION BY id_account, DATE_TRUNC(sent_date, MONTH)) as message_count_by_account,
+  COUNT(id_message) OVER (PARTITION BY DATE_TRUNC(sent_date, MONTH)) as message_count,
+  DATE(EXTRACT(year FROM sent_date), EXTRACT(month FROM sent_date), 1) AS sent_month,
+  MIN(sent_date) OVER (PARTITION BY id_account, DATE_TRUNC(sent_date, MONTH)) AS first_sent_date,
+  MAX(sent_date) OVER (PARTITION BY id_account, DATE_TRUNC(sent_date, MONTH)) AS last_sent_date,
+  id_account
+ 
+from(
+  select
+  id_message,
+  id_account,
+  DATE_ADD(session.date, INTERVAL email_sent.sent_date DAY) as sent_date,
+--- від цього підзапиту можна відмовитись, але без нього код буде погано читаємий, оскільки сточку з DATE_ADD потрібно буде повторювати усюди, де є sent_date
+
+
+from `DA.email_sent` email_sent
+join `DA.account_session` account_session
+on email_sent.id_account = account_session.account_id
+join `DA.session` session
+on account_session.ga_session_id = session.ga_session_id
+group by sent_date, id_message, id_account
+order by sent_date
+) send_date )
+
+
+select
+  distinct sent_month,
+  id_account,
+  CONCAT(ROUND(message_count_by_account / message_count * 100, 3), '%') as sent_msg_percent_from_this_month,
+  first_sent_date,
+  last_sent_date,
+from counting
+
+select *
+from Students.v_momot_aggregation_data_with_view
