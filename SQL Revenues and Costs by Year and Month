@@ -1,0 +1,24 @@
+select
+  EXTRACT(year FROM paid_search.date) as year,
+  EXTRACT(month FROM paid_search.date) as month,
+  'cost' AS type,
+  SUM(cost) AS amount
+  /*ROUND(sum(cost), 1) as cost,
+  0 as revenue */
+from `DA.paid_search_cost` paid_search
+group by month, year
+UNION ALL
+select
+  EXTRACT(year FROM date) as year,
+  EXTRACT(month FROM date) as month,
+  'revenue' AS type,
+  SUM(price) AS amount
+  /*0 as cost,
+  ROUND(sum(price), 1) as revenue */
+from `DA.product` product
+join `DA.order` orders
+on orders.item_id = product.item_id
+join `DA.session` session
+on orders.ga_session_id = session.ga_session_id
+group by month, year
+order by year, month
