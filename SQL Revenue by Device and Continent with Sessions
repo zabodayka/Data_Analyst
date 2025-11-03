@@ -1,0 +1,45 @@
+WITH
+revenues_from as (
+  select
+  session_params.continent,
+  ROUND(SUM(product.price), 1) as Revenue,
+  ROUND(SUM(case when device = 'desktop' then product.price end), 1) as Revenue_from_Desktop,
+  ROUND(SUM(case when device = 'mobile' then product.price end), 1) as Revenue_from_Mobile,
+  ROUND(SUM(product.price)/ SUM(SUM(product.price)) OVER ()*100,2) AS Revenue_from_Total,
+  from `DA.order` orders
+  join `DA.product` product
+  on orders.item_id = product.item_id
+  join `DA.session_params` session_params
+  on orders.ga_session_id = session_params.ga_session_id
+  group by session_params.continent
+),
+
+
+accounts as (
+  select
+    session_params.continent as continent_details,
+    count(account.id) as Account_Count,
+    count(session_params.ga_session_id) as Session_Count,
+    count(case when is_verified = 1 then account.id end) as Verified_Account
+  from `DA.session_params` session_params
+  left join `DA.account_session` account_session
+  on account_session.ga_session_id = session_params.ga_session_id
+  left join `DA.account` account
+  on account.id = account_session.account_id
+  group by session_params.continent
+)
+
+
+select
+  continent_details,
+  Revenue,
+  Revenue_from_Mobile,
+  Revenue_from_Desktop,
+  Revenue_from_Total,
+  Account_Count,
+  Verified_Account,
+  Session_Count
+  from revenues_from
+  join accounts
+  on revenues_from.continent = accounts.continent_details
+  order by Revenue desc
